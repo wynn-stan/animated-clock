@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Clock</title>
+
+    <style type="text/css">
+        canvas {
+            border: 1px solid cornflowerblue;
+            background-color: rgb(170, 194, 238);
+        }
+    </style>
+
+</head>
+<body>
+    
+    <canvas id="canvas"></canvas>
+
+    <script type="text/javascript">
+
+        const canvas = document.getElementById("canvas")
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let context_midpoint_x = canvas.width / 2;
+        let context_midpoint_y = canvas.height / 2;
+
+
+        /*
+            Make math functions an entity with processes
+                - degreesToRadian()
+                - getPoint(current_position_x, current_position_y, distance, clockwise_direction);
+                - getPointOnCircle(radius, clockwise_direction);
+                -
+
+
+            Make circle an entity
+                data
+                    - radius
+                    - numerals_directions
+
+                processes
+                    - setNymeralData()
+                    - drawCircularFrame()
+                    - drawNumerals()
+                    - drawHourHand()
+                    - animateClock()
+                    
+        
+        */
+
+        function clockMathFunctions(){
+            this.degreesToRadian = (degree) => {
+                let radian_value = degree * (Math.PI / 180);
+                return radian_value;
+            }
+
+            this.getPointOnCirlce = (radius, clockwise_direction) => {
+                let x_position = radius * Math.sin(clockwise_direction);
+                let y_position = radius * Math.cos(clockwise_direction);
+
+                let coordinates = {
+                    x: x_position,
+                    y: y_position
+                };
+
+                return coordinates;
+            }
+
+            this.movePointInDirection = (start_x_position, start_y_position, distance, degreeDirection) => {
+                let new_x_position = start_x_position + (distance * Math.cos(degreeDirection * Math.PI / 180));
+                let new_y_position = start_y_position + (distance * Math.sin(degreeDirection * Math.PI / 180));
+
+                let coordinates = {
+                    x: new_x_position,
+                    y: new_y_position
+                }
+
+                return coordinates;
+            }
+        }
+
+        function Clock(){
+
+            this.numeralData = [];
+            this.mathFunctions = new clockMathFunctions();
+
+            this.setNumeralData = () => {
+
+                    degreeDirection = 270;
+
+                    for(let i = 12; i >= 1; i--){
+                        this.numeralData.push(
+                            {
+                                digit: i,
+                                degreeDirection: degreeDirection
+                            }
+                        );
+
+                        if(degreeDirection > 0){
+                            degreeDirection = degreeDirection - 30
+                        }else {
+                            degreeDirection = 360 - degreeDirection - 30
+                        }
+                    }
+            }
+
+            this.drawCircularFrame = () => {
+        
+                let radius = 130;
+
+                ctx.beginPath();
+                ctx.arc(
+                    context_midpoint_x,
+                    context_midpoint_y,
+                    radius,
+                    0,
+                    Math.PI * 2,
+                    false
+                );
+                ctx.stroke();
+
+            }
+
+            this.drawNumerals = () => {
+                // to draw numerals, get the digit, the direction and the distance from the center of the circular frame
+
+                const distance = 110;
+
+                this.numeralData.forEach(
+                    (numeral) => {
+                        let numeralCoordinates = this.mathFunctions.movePointInDirection(context_midpoint_x, context_midpoint_y, distance, numeral.degreeDirection);
+                        ctx.fillText(numeral.digit, numeralCoordinates.x, numeralCoordinates.y);
+                    }
+                )
+            }
+
+            this.drawHands = () => {
+
+                ctx.fillRect(context_midpoint_x - 5, context_midpoint_y - 5, 10, 10);
+
+                let date = new Date();
+                let currentHour = date.getHours();
+                let currentMinute = date.getMinutes();
+                let currentSecond = date.getSeconds();
+
+                // draw hour hand, start position being center of clock, direction being the degreeDirection of the corresponding numeral + ((currentMinutes/12) * 6 degrees)
+                let hourHandLength = 40;
+                let hourNumeralElement = 12 - currentHour;
+                let hourNumeral = this.numeralData[hourNumeralElement];
+                let normalHourDegreeDirection = hourNumeral.degreeDirection;
+                currentHourDegreeDirection = normalHourDegreeDirection +  (Math.floor(currentMinute /  12) * 6);
+
+                let hourHandEndPosition = this.mathFunctions.movePointInDirection(context_midpoint_x, context_midpoint_y, hourHandLength, currentHourDegreeDirection);
+
+                ctx.beginPath();
+                ctx.moveTo(context_midpoint_x, context_midpoint_y);
+                ctx.lineTo(hourHandEndPosition.x, hourHandEndPosition.y);
+                ctx.lineWidth = 6;
+                ctx.stroke();
+
+                // draw minute hand, start position being center of clock, direction being 270 degrees + (currentMinutes * 6 degress)
+                let minuteHandLength = 70;
+                let minuteHandEndPosition = this.mathFunctions.movePointInDirection(context_midpoint_x, context_midpoint_y, minuteHandLength, (270 + (currentMinute * 6)));
+
+                ctx.moveTo(context_midpoint_x, context_midpoint_y);
+                ctx.lineTo(minuteHandEndPosition.x, minuteHandEndPosition.y);
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // draw seconds Hand, start position being center of clock, direction being 270 degrees + (currentSeconds * 6 degrees)
+                let secondHandLength = 100;
+                let secondHandEndPosition = this.mathFunctions.movePointInDirection(context_midpoint_x, context_midpoint_y, secondHandLength, (270 + (currentSecond * 6)));
+                
+                ctx.moveTo(context_midpoint_x, context_midpoint_y);
+                ctx.lineTo(secondHandEndPosition.x, secondHandEndPosition.y);
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            this.animate = () => {
+                ctx.clearRect(0,0, canvas.width, canvas.height);
+
+                this.drawCircularFrame();
+                this.drawNumerals();
+                this.drawHands();
+
+                requestAnimationFrame(this.animate);
+            }
+
+        }
+
+        let newClock = new Clock();
+        newClock.setNumeralData();
+        newClock.animate();
+
+    </script>
+</body>
+</html>
